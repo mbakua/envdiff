@@ -1,70 +1,76 @@
-"""Core diffing logic for comparing environment variable sets."""
+"""Core diff logic for comparing two environment variable sets."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Tuple
 
 
 @dataclass
 class DiffResult:
-    """Holds the result of comparing two environment variable sets."""
+    """Holds the result of diffing two env dicts."""
 
     only_in_left: Dict[str, str] = field(default_factory=dict)
     only_in_right: Dict[str, str] = field(default_factory=dict)
-    value_mismatches: Dict[str, tuple] = field(default_factory=dict)  # key -> (left_val, right_val)
+    value_mismatches: Dict[str, Tuple[str, str]] = field(default_factory=dict)
     matching: Dict[str, str] = field(default_factory=dict)
 
-    @property
-    def has_differences(self) -> bool:
-        return bool(self.only_in_left or self.only_in_right or self.value_mismatches)
 
-    @property
-    def summary(self) -> str:
-        lines: List[str] = []
-        if self.only_in_left:
-            lines.append(f"  Only in left  : {len(self.only_in_left)} key(s)")
-        if self.only_in_right:
-            lines.append(f"  Only in right : {len(self.only_in_right)} key(s)")
-        if self.value_mismatches:
-            lines.append(f"  Value mismatch: {len(self.value_mismatches)} key(s)")
-        if not lines:
-            return "No differences found."
-        return "Differences detected:\n" + "\n".join(lines)
+def has_differences(result: DiffResult) -> bool:
+    """Return True if there are any differences in *result*."""
+    return bool(
+        result.only_in_left
+        or result.only_in_right
+        or result.value_mismatches
+    )
+
+
+def summary(result: DiffResult) -> str:
+    """Return a one-line human-readable summary of *result*."""
+    parts: List[str] = []
+    if result.only_in_left:
+        parts.append(f"{len(result.only_in_left)} only in left")
+    if result.only_in_right:
+        parts.append(f"{len(result.only_in_right)} only in right")
+    if result.value_mismatches:
+        parts.append(f"{len(result.value_mismatches)} mismatched")
+    if not parts:
+        return "No differences found."
+    return "; ".join(parts) + "."
 
 
 def diff_envs(
     left: Dict[str, str],
     right: Dict[str, str],
-    ignore_keys: Optional[List[str]] = None,
 ) -> DiffResult:
-    """Compare two environment variable dictionaries.
+    """Compare *left* and *right* env dicts and return a :class:`DiffResult`.
 
     Args:
-        left: The baseline environment (e.g. staging).
-        right: The target environment (e.g. production).
-        ignore_keys: Optional list of keys to exclude from comparison.
+        left: The base (e.g. staging) environment variables.
+        right: The target (e.g. production) environment variables.
 
     Returns:
-        A DiffResult describing the differences.
+        A populated :class:`DiffResult` instance.
     """
-    ignore = set(ignore_keys or [])
-    left_filtered = {k: v for k, v in left.items() if k not in ignore}
-    right_filtered = {k: v for k, v in right.items() if k not in ignore}
+    left_keys = set(left)
+    right_keys = set(right)
 
-    left_keys = set(left_filtered)
-    right_keys = set(right_filtered)
+    only_in_left = {k: left[k] for k in left_keys - right_keys}
+    only_in_right = {k: right[k] for k in right_keys - left_keys}
+    common = left_keys & right_keys
 
-    result = DiffResult()
+    value_mismatches: Dict[str, Tuple[str, str]] = {}
+    matching: Dict[str, str] = {}
 
-    for key in left_keys - right_keys:
-        result.only_in_left[key] = left_filtered[key]
-
-    for key in right_keys - left_keys:
-        result.only_in_right[key] = right_filtered[key]
-
-    for key in left_keys & right_keys:
-        if left_filtered[key] != right_filtered[key]:
-            result.value_mismatches[key] = (left_filtered[key], right_filtered[key])
+    for k in common:
+        if left[k] != right[k]:
+            value_mismatches[k] = (left[k], right[k])
         else:
-            result.matching[key] = left_filtered[key]
+            matching[k] = left[k]
 
-    return result
+    return DiffResult(
+        only_in_left=only_in_left,
+        only_in_right=only_in_right,
+        value_mismatches=value_mismatches,
+        matching=matching,
+    )
