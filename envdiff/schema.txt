@@ -1,8 +1,10 @@
-# envdiff example required-keys schema
-# One key name per line; lines starting with '#' and blank lines are ignored.
-
+# envdiff required-keys schema
+# One key per line; lines starting with '#' and blank lines are ignored.
 DATABASE_URL
 SECRET_KEY
 DEBUG
 ALLOWED_HOSTS
 LOG_LEVEL
+PORT
+EXPORT_FORMAT
+EXPORT_DEST
