@@ -39,6 +39,28 @@ def summary(result: DiffResult) -> str:
     return "; ".join(parts) + "."
 
 
+def filter_keys(result: DiffResult, keys: List[str]) -> DiffResult:
+    """Return a new :class:`DiffResult` containing only the specified *keys*.
+
+    Useful for narrowing a diff to a subset of environment variable names,
+    for example when only certain variables are relevant to a deployment.
+
+    Args:
+        result: The original diff result to filter.
+        keys: The list of variable names to retain.
+
+    Returns:
+        A new :class:`DiffResult` with all fields filtered to *keys*.
+    """
+    key_set = set(keys)
+    return DiffResult(
+        only_in_left={k: v for k, v in result.only_in_left.items() if k in key_set},
+        only_in_right={k: v for k, v in result.only_in_right.items() if k in key_set},
+        value_mismatches={k: v for k, v in result.value_mismatches.items() if k in key_set},
+        matching={k: v for k, v in result.matching.items() if k in key_set},
+    )
+
+
 def diff_envs(
     left: Dict[str, str],
     right: Dict[str, str],
