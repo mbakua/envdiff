@@ -50,9 +50,27 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _load(path: str | None) -> dict[str, str]:
+    """Load environment variables from a file path or the current process environment.
+
+    Args:
+        path: Path to a .env file, or ``None`` to read from the current environment.
+
+    Returns:
+        A dictionary of environment variable names to their string values.
+
+    Raises:
+        SystemExit: If the given path does not exist or cannot be read.
+    """
     if path is None:
         return parse_current_env()
-    return parse_env_file(Path(path))
+    file = Path(path)
+    if not file.exists():
+        print(f"envdiff: error: file not found: {path}", file=sys.stderr)
+        sys.exit(2)
+    if not file.is_file():
+        print(f"envdiff: error: not a regular file: {path}", file=sys.stderr)
+        sys.exit(2)
+    return parse_env_file(file)
 
 
 def main(argv: list[str] | None = None) -> int:
