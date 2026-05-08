@@ -55,3 +55,16 @@ class TestMergeThenDiff:
         merged = merge_envs(BASE, OVERRIDE, prefix="APP_")
         assert merged["DB_HOST"] == BASE["DB_HOST"]
         assert merged["APP_ENV"] == "production"
+
+    def test_merge_is_idempotent_with_same_inputs(self):
+        """Merging an env with itself should produce an identical env
+        regardless of strategy, with no diff between the result and the
+        original."""
+        for strategy in MergeStrategy:
+            merged = merge_envs(BASE, BASE, strategy=strategy)
+            result = diff_envs(merged, BASE)
+            assert not has_differences(result), (
+                f"Expected no differences for strategy {strategy}, "
+                f"got: mismatches={result.value_mismatches}, "
+                f"only_left={result.only_in_left}, only_right={result.only_in_right}"
+            )
